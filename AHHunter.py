@@ -6,91 +6,11 @@ import winsound
 import numpy as np
 import pandas as pd
 import requests
-import sparse_dot_topn.sparse_dot_topn as ct  # Cosine Similarity
-from scipy.sparse import csr_matrix
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 API_KEY = 'xxx'
 thread_lock = threading.Lock()
 AUCTION_DATA = {}
 last_updated_old = 0
-
-
-def ngrams(string, n=3):
-    string = re.sub(r'[,-./]|\sBD', r'', string)
-    ngrams = zip(*[string[i:] for i in range(n)])
-    return [''.join(ngram) for ngram in ngrams]
-
-
-def awesome_cossim_top(A, B, ntop, lower_bound=0.):
-    # force A and B as a CSR matrix.
-    # If they have already been CSR, there is no overhead
-    A = A.tocsr()
-    B = B.tocsr()
-    M, _ = A.shape
-    _, N = B.shape
-
-    idx_dtype = np.int32
-
-    nnz_max = M * ntop
-
-    indptr = np.zeros(M + 1, dtype=idx_dtype)
-    indices = np.zeros(nnz_max, dtype=idx_dtype)
-    data = np.zeros(nnz_max, dtype=A.dtype)
-
-    ct.sparse_dot_topn(
-        M, N, np.asarray(A.indptr, dtype=idx_dtype),
-        np.asarray(A.indices, dtype=idx_dtype),
-        A.data,
-        np.asarray(B.indptr, dtype=idx_dtype),
-        np.asarray(B.indices, dtype=idx_dtype),
-        B.data,
-        ntop,
-        lower_bound,
-        indptr, indices, data)
-
-    return csr_matrix((data, indices, indptr), shape=(M, N))
-
-
-def get_matches_df(sparse_matrix, name_vector, top=200):
-    non_zeros = sparse_matrix.nonzero()
-
-    sparserows = non_zeros[0]
-    sparsecols = non_zeros[1]
-
-    if top:
-        nr_matches = top
-    else:
-        nr_matches = sparsecols.size
-
-    left_side = np.empty([nr_matches], dtype=object)
-    right_side = np.empty([nr_matches], dtype=object)
-    similairity = np.zeros(nr_matches)
-
-    for index in range(0, nr_matches):
-        left_side[index] = name_vector[sparserows[index]]
-        right_side[index] = name_vector[sparsecols[index]]
-        similairity[index] = sparse_matrix.data[index]
-
-    return pd.DataFrame({'left_side': left_side,
-                         'right_side': right_side,
-                         'similairity': similairity})
-
-
-def get_purse():
-    api_profile_id = 'https://api.hypixel.net/skyblock/profiles'
-    UUID = '71efd9bb647246ed89473c8ed8efb65d'
-    parameters = {"key": API_KEY, "uuid": UUID}
-    response = requests.get(api_profile_id, params=parameters)
-    response = response.json()
-    return response['profiles'][0]['members'][UUID]['coin_purse']
-
-
-def get_uuid(username: str):
-    api_uuid = 'https://api.hypixel.net/player'
-    parameters = {"key": API_KEY, "name": username}
-    response = requests.get(api_uuid, params=parameters).json()
-    print(response['player']['uuid'])
 
 
 def human_format(num):
@@ -180,19 +100,6 @@ def get_auctions(item_name: str, price: int, page: int, reforges_list, matches, 
                 continue
 
 
-def find_matches():
-    path = "auction_objects_names.csv"
-    df = pd.read_csv(path)
-    names = df["item"].astype(str)
-    vectorizer = TfidfVectorizer(min_df=1, analyzer=ngrams)
-    tf_idf_matrix = vectorizer.fit_transform(names)
-
-    matches = awesome_cossim_top(tf_idf_matrix, tf_idf_matrix.transpose(), 10, 0.85)
-    matches_df = get_matches_df(matches, names, top=len(df["item"]))
-    matches_df = matches_df[matches_df['similairity'] < 0.99999]
-    return matches_df
-
-
 def rename_to_similar(item_name, matches_df):
     similar_words = pd.DataFrame()
     similar_words["index_left"] = matches_df["left_side"].isin([item_name])
@@ -275,8 +182,6 @@ def find_items_to_flip(data: pd.DataFrame()):
                                                             "Demand", "Auction uuid"])
     items_to_flip_dataset.sort_values(by="Expected Profit", ascending=False, inplace=True)
     print(items_to_flip_dataset)
-    # for i in range(1, 5):
-    #   winsound.Beep(i * 100, 200)
     global AUCTION_DATA
     AUCTION_DATA = {}
 
@@ -294,7 +199,6 @@ def check_auctions(reforges_list, matches: list, id: int):
 if __name__ == '__main__':
     last_updated = 0
     path = "auction_objects_data.csv"
-    matches = find_matches()
     reforges_list = ((pd.read_csv("reforges.csv"))["reforges"]).to_list()
     reforges_list_lower = []
     for reforge in reforges_list:
@@ -306,7 +210,7 @@ if __name__ == '__main__':
     while True:
         print("Creating new thread")
         thread_counter += 1
-        s1 = threading.Thread(target=check_auctions, args=[reforges_list, matches, thread_counter])
+        s1 = threading.Thread(target=check_auctions, args=[reforges_list, [], thread_counter])
         s1.start()
         agents.append(s1)
         agents[-1].join()
