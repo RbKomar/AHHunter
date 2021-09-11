@@ -117,7 +117,7 @@ def auction_finder(reforges_list, matches, item_name: str = '', price: int = 0, 
     number_of_pages, last_updated = get_number_of_auctions_pages_and_if_updated()
     global last_updated_old
     if last_updated == last_updated_old:
-        last_updated_old = last_updated_old
+        return None
     for page in range(0, number_of_pages):
         x = threading.Thread(target=get_auctions, args=(item_name, price, page, reforges_list, matches, lore))
         threads.append(x)
@@ -125,7 +125,6 @@ def auction_finder(reforges_list, matches, item_name: str = '', price: int = 0, 
     for thread in threads:
         thread.join()
     last_updated_old = last_updated
-    return last_updated
 
 
 def MAD_Z_Score(data, consistency_correction=1.4826):
