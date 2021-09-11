@@ -178,8 +178,8 @@ def find_items_to_flip(data: pd.DataFrame()):
                         expected_profit = cheapest - outlier
                         flip_items[str(index)] = [outlier, cheapest, expected_profit, len(product), products_uuid[idx]]
     items_to_flip_dataset = pd.DataFrame.from_dict(flip_items, orient="index",
-                                                   columns=["Price", "Cheapest", "Expected Profit",
-                                                            "Demand", "Auction uuid"])
+                                                   columns=["Hunted Price", "LBin", "Expected Profit",
+                                                            "Items on market", "Auction uuid"])
     items_to_flip_dataset.sort_values(by="Expected Profit", ascending=False, inplace=True)
     print(items_to_flip_dataset)
     global AUCTION_DATA
