@@ -187,10 +187,7 @@ def find_items_to_flip(data: pd.DataFrame()):
 
 
 def check_auctions(reforges_list, matches: list, id: int):
-    start = time.time()
     auction_finder(reforges_list, matches)
-    end = time.time()
-    print(end - start)
     data = pd.DataFrame.from_dict(AUCTION_DATA, orient='index')
     find_items_to_flip(data)
     print("Thread #" + str(id) + " has finished its job")
