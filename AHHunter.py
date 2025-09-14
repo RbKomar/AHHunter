@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from database import DatabaseManager
+
 CONFIG = {
     "api_key": os.getenv('HYPIXEL_API_KEY'),
     "max_api_pages": 120,
@@ -22,6 +24,7 @@ CONFIG = {
     "max_outlier_count": 3,
     "reforges_csv_path": "reforges.csv",
     "results_csv_path": "flips.csv",
+    "db_path": "ah_prices.db",
     "log_level": "INFO",
 }
 
@@ -41,6 +44,7 @@ class AuctionHunter:
         self.auction_data = {}
         self.last_updated = 0
         self.reforges = self._load_reforges()
+        self.db_manager = DatabaseManager(db_path=self.config["db_path"])
 
         if not self.config["api_key"]:
             logging.warning("HYPIXEL_API_KEY environment variable not set. API requests may fail.")
@@ -223,16 +227,50 @@ class AuctionHunter:
             logging.info(f"Saved results to {self.config['results_csv_path']}")
         except IOError as e:
             logging.error(f"Could not save results to CSV: {e}")
+
+    def _update_price_history(self):
+        """
+        Iterates through the latest auction scan data and updates the database
+        with the lowest BIN price for each item if it has changed.
+        """
+        if not self.auction_data:
+            logging.info("No auction data to update price history.")
+            return
+
+        logging.info("Updating price history in the database...")
+        updated_count = 0
+        for item_name, auctions in self.auction_data.items():
+            if not auctions:
+                continue
+            
+            try:
+                # Calculate the lowest BIN (LBIN) as the representative price
+                prices = [float(a.split('|')[0]) for a in auctions]
+                lbin = min(prices)
+                
+                if self.db_manager.update_price_if_changed(item_name, lbin):
+                    updated_count += 1
+            except (ValueError, IndexError) as e:
+                logging.warning(f"Could not parse price for {item_name}: {e}")
+                continue
+        logging.info(f"Price history updated for {updated_count} items.")
             
     def run(self):
         job_id = 0
-        while True:
-            job_id += 1
-            logging.info(f"Starting scan job #{job_id}...")
-            self.run_auction_scan()
-            self.find_and_report_flips()
-            logging.info(f"Scan job #{job_id} finished. Waiting {self.config['scan_interval_seconds']} seconds.")
-            time.sleep(self.config["scan_interval_seconds"])
+        try:
+            while True:
+                job_id += 1
+                logging.info(f"Starting scan job #{job_id}...")
+                self.run_auction_scan()
+                self._update_price_history()
+                self.find_and_report_flips()
+                logging.info(f"Scan job #{job_id} finished. Waiting {self.config['scan_interval_seconds']} seconds.")
+                time.sleep(self.config["scan_interval_seconds"])
+        except KeyboardInterrupt:
+            logging.info("Shutdown signal received.")
+        finally:
+            self.db_manager.close()
+
 
 if __name__ == '__main__':
     hunter = AuctionHunter(CONFIG)

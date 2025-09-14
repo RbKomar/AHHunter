@@ -11,6 +11,10 @@ Install the required Python packages using pip and the provided `requirements.tx
 ```bash
 pip install -r requirements.txt
 ```
+Additionally, for the optional analysis script, you will need `matplotlib`:
+```bash
+pip install matplotlib
+```
 
 ### 3. API Key
 This script requires a Hypixel API key to function.
@@ -36,6 +40,17 @@ Once the setup is complete, run the script from your terminal:
 python AHHunter.py
 ```
 The script will continuously scan the auction house, identify underpriced items using anomaly detection, and print potential flips to the console.
+
+All price data is stored in an `ah_prices.db` SQLite database file.
+
+## Data Analysis
+You can analyze the collected price data by running the `analysis.py` script. This script will generate a plot of the price history for a given item and save it as a PNG image file in the project directory.
+
+Example:
+```bash
+python analysis.py "Withered Flower Of Truth"
+```
+This will create a file named `price_history_Withered_Flower_Of_Truth.png`.
 
 ## Platform Compatibility
 The script is cross-platform and has been updated to work on Windows, macOS, and Linux. System-specific features like notification sounds are handled gracefully.
