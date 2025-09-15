@@ -108,3 +108,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+flips.csv
